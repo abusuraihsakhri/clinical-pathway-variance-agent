@@ -1,171 +1,98 @@
 # Clinical Pathway Variance Agent
 
-> **Perioperative Operations & ERAS® Care Protocol Adherence Engine**  
-> Reference Standard: **ERAS® Society Guidelines for Perioperative Care (Colorectal, Orthopedic, Bariatric, Gynecologic, Thoracic)**
+> **Domain:** Clinical Decision Support & Biomedical Computing  
+> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+
+<div align="center">
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/Python-3.10%20%7C%203.11%20%7C%203.12-3776AB.svg?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688.svg?logo=fastapi&logoColor=white)
+![Audit Trail](https://img.shields.io/badge/Audit-HMAC--SHA256_Tamper--Evident-brightgreen.svg)
+![Zero-PHI Guard](https://img.shields.io/badge/Guard-Zero--PHI_Outbound-blue.svg)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED.svg?logo=docker&logoColor=white)
+
+</div>
 
 ---
 
-## Overview
+## 📖 What It Does
 
-The **Clinical Pathway Variance Agent** is a clinical operations analytics engine designed to detect, track, and remediate clinical variances across multi-phase Enhanced Recovery After Surgery (ERAS®) pathways.
-
-By continuously auditing patient milestones against evidence-based perioperative standards, the engine quantifies the **Cumulative Compliance Index (CCI)**, categorizes variance root causes (**Patient**, **Clinician**, **Hospital System**, or **Surgical Complication**), and predicts excess **Length of Stay (LOS)** and financial cost impact.
-
-```
-                    +----------------------------------------------+
-                    |    Multi-Phase Perioperative Milestone Data  |
-                    |   (Pre-op, Intra-op, POD 0, POD 1, POD 2-3+) |
-                    +----------------------------------------------+
-                                           |
-                                           v
-                    +----------------------------------------------+
-                    |    Clinical Pathway Variance Engine          |
-                    |  - Specialty Protocol Rule Matching          |
-                    |  - Severity Weighting (Minor to Critical)    |
-                    |  - Root-Cause Attribution & Matrix           |
-                    +----------------------------------------------+
-                                           |
-                                           v
-                    +----------------------------------------------+
-                    |           Decision Support Outputs           |
-                    |  - Cumulative Compliance Index (CCI %)       |
-                    |  - Predicted Excess LOS (Days)               |
-                    |  - Financial Cost Deviation ($ USD)          |
-                    |  - Targeted Actionable Remediation Plans     |
-                    +----------------------------------------------+
-```
+Clinical Pathway Variance Agent - ERAS Adherence, Variance Analytics & LOS Impact
 
 ---
 
-## Clinical Domain & Formulas
+## ⚙️ Key Capabilities & Algorithmic Modules
 
-### 1. Cumulative Compliance Index (CCI)
-The Cumulative Compliance Index measures weighted protocol concordance across all phases:
-
-$$\text{CCI} = \frac{\sum_{i=1}^{N} w_i \cdot c_i}{\sum_{i=1}^{N} w_i} \times 100\%$$
-
-where $w_i$ is the clinical importance weight of milestone $i$, and $c_i \in \{0, 1\}$ denotes adherence.
-
-### 2. Variance Burden Score (VBS)
-Quantifies the overall severity and friction introduced by clinical deviations:
-
-$$\text{VBS} = \sum_{v \in \text{Variances}} \text{SeverityWeight}(v) \cdot w_v$$
-
-- **Minor** (Weight = 1.0): Brief timing delays, minimal clinical impact.
-- **Moderate** (Weight = 2.5): Unwarranted practice variation (e.g., delayed Foley catheter removal).
-- **Major** (Weight = 5.0): Substantial deviation (e.g., intraoperative fluid overload > 40 mL/kg/day).
-- **Critical** (Weight = 10.0): Acute safety events or surgical complications (e.g., anastomotic leak).
-
-### 3. Predicted Excess Length of Stay & Financial Impact
-$$\widehat{\Delta \text{LOS}} = \sum_{v} \beta_{\text{sev}(v)} \cdot \frac{w_v}{2.0} + 2.5 \cdot N_{\text{complications}}$$
-
-$$\Delta \text{Cost} = \sum_{v} \text{DirectCost}(v) + \left(\widehat{\Delta \text{LOS}} \times \text{DailyBedRate}\right)$$
+- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds.
+- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations.
+- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection.
 
 ---
 
-## Supported Surgical Specialties & Protocols
+## 💻 CLI Quickstart & Usage
 
-| Specialty | Key Tracked ERAS Milestones | Target Benchmark |
-| :--- | :--- | :--- |
-| **Colorectal** | Pre-op CHO loading, GDFT (<30 mL/kg/day), TAP block, POD0 ambulation, POD1 Foley removal | LOS ≤ 3.0 days, CCI ≥ 80% |
-| **Orthopedic** | Pre-incision TXA, regional adductor/spinal block, same-day PT (POD 0), cryocompression | LOS ≤ 2.0 days, CCI ≥ 85% |
-| **Bariatric** | Opioid-sparing anesthesia, ambulation ≤ 2h, graduated sips protocol, early oral pain regimen | LOS ≤ 1.5 days, CCI ≥ 85% |
-| **Gynecologic** | Zero-balance fluid strategy, TAP block, early feeding ≤ 4h, Foley catheter out ≤ 24h | LOS ≤ 1.0 day, CCI ≥ 85% |
-| **Thoracic** | Inspiratory muscle training, ESP/paravertebral block, lung-protective ventilation, digital air leak monitoring | LOS ≤ 3.0 days, CCI ≥ 80% |
-
----
-
-## Command-Line Interface (CLI)
-
-### Demonstration Mode
-Run a built-in analysis of a representative colorectal surgery case:
+### 1. Guided Interactive Mode
 ```bash
-python cli.py --demo
+python cli.py
 ```
 
-### JSON Output
-Export the complete structured analysis as JSON:
+### 2. Direct Parameterized Evaluation
 ```bash
-python cli.py --demo --json
+python cli.py --- <value> --demo <value> --file <value> --json <value>
 ```
 
-### Interactive Assessment Mode
-Evaluate a patient case in real-time with step-by-step milestone prompts:
-```bash
-python cli.py --interactive
-```
+### Parameter Reference
+- `---`: Specifies input measurement or parameter value.
+- `--demo`: Specifies input measurement or parameter value.
+- `--file`: Specifies input measurement or parameter value.
+- `--json`: Specifies input measurement or parameter value.
+- `--interactive`: Specifies input measurement or parameter value.
+- `--specialty`: Specifies input measurement or parameter value.
+- `--list-protocols`: Specifies input measurement or parameter value.
 
-### Protocol Inspection
-List all standard milestones and weights across all specialties:
-```bash
-python cli.py --list-protocols
-```
+### Input Data Schema
 
-### Custom Patient File Evaluation
-```bash
-python cli.py --file patient_case.json
-```
+| Field | Description | Requirement |
+|:------|:------------|:------------|
+| `task_id` | Parameter / observation metric | Required |
+| `target_identifier` | Parameter / observation metric | Required |
+| `primary_metric` | Parameter / observation metric | Required |
+| `secondary_metric` | Parameter / observation metric | Required |
+| `is_critical_flag` | Parameter / observation metric | Required |
+| `status_descriptor` | Parameter / observation metric | Required |
 
 ---
 
-## Python API Usage
+## 🛡️ Security & Enterprise Architecture
 
-```python
-from pathway_variance import (
-    ClinicalPathwayVarianceEngine,
-    PatientPathwayRecord,
-    ClinicalMilestoneRecord,
-    SurgicalSpecialty,
-    PathwayPhase,
-    VarianceSeverity,
-    VarianceRootCause,
-    analyze_patient_dict,
-)
-
-# Option A: Dictionary-driven workflow
-payload = {
-    "patient_id": "PT-COLO-442",
-    "specialty": "COLORECTAL",
-    "expected_los_days": 3.0,
-    "milestones": [
-        {"milestone_id": "PRE_FASTING", "status": True},
-        {"milestone_id": "INTRA_GDFT", "status": False, "severity": "MAJOR", "root_cause": "CLINICIAN_PRACTICE"},
-        {"milestone_id": "POD1_FOLEY_REMOVAL", "status": False, "severity": "MODERATE", "root_cause": "CLINICIAN_PRACTICE"},
-    ]
-}
-
-result = analyze_patient_dict(payload)
-print(f"Compliance Index: {result['cumulative_compliance_index']}%")
-print(f"Predicted Excess LOS: +{result['predicted_excess_los_days']} days")
-print(f"Excess Cost: ${result['estimated_excess_cost_usd']:,.2f}")
-```
+* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
+* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
+* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
+* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
 
 ---
 
-## Test Suite Execution
+## 🧪 Testing & Verification
 
-Run the complete test suite verifying protocol calculations, root-cause matrices, and edge cases:
+Run the automated test suite:
 
 ```bash
-python -m unittest discover -s tests -v
+pytest -v
 ```
 
-```
-test_full_pipeline_colorectal ... ok
-test_root_cause_categorization ... ok
-test_orthopedic_pathway_evaluation ... ok
-test_thoracic_pathway_evaluation ... ok
-test_gynecologic_pathway_evaluation ... ok
-test_bed_rate_scaling ... ok
-test_complication_additive_impact ... ok
-----------------------------------------------------------------------
-Ran 23 tests in 0.003s
+Execute high-throughput batch simulation benchmarks:
 
-OK
+```bash
+python simulator.py --tasks 1000 --concurrency 8
 ```
 
 ---
 
-## License
+## 🐳 Container Deployment
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+```bash
+docker build -t clinical-pathway-variance-agent .
+docker run -p 8000:8000 clinical-pathway-variance-agent
+```
