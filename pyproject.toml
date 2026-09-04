@@ -20,7 +20,7 @@ requires-python = ">=3.9"
 dependencies = []
 
 [project.scripts]
-clinical-pathway-variance-engine = "pathway_variance.cli:main"
+clinical-pathway-variance-engine = "cli:main"
 
 [project.urls]
 Homepage = "https://github.com/abusuraihsakhri/clinical-pathway-variance-engine"

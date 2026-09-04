@@ -1,4 +1,6 @@
-task_id,target_identifier,primary_metric,secondary_metric,is_critical_flag,status_descriptor
-TASK-001,TARGET-01,28.4,14.2,True,DISCORDANT
-TASK-002,TARGET-02,12.0,4.1,False,NOMINAL
-TASK-003,TARGET-03,35.0,19.5,True,ANOMALY
+patient_id,specialty,procedure_name,expected_los_days,actual_los_days,daily_bed_rate_usd,variances_milestones,complications
+PT-COL-001,COLORECTAL,Laparoscopic Sigmoid Colectomy,3.0,3.5,2400.0,"INTRA_GDFT:MAJOR:CLINICIAN_PRACTICE:Excess fluid administration (38 mL/kg);POD1_FOLEY_REMOVAL:MODERATE:CLINICIAN_PRACTICE:Clinician ordered Foley maintained",
+PT-ORT-002,ORTHOPEDIC,Total Knee Arthroplasty,2.0,2.0,2200.0,,
+PT-BAR-003,BARIATRIC,Laparoscopic Sleeve Gastrectomy,2.0,4.0,2600.0,"POD0_EARLY_AMBULATION:MODERATE:PATIENT_FACTOR:Post-op nausea and dizziness delayed walking;POD1_ADEQUATE_HYDRATION:MINOR:PATIENT_FACTOR:Low oral liquid intake",Dehydration
+PT-THO-004,THORACIC,Video-Assisted Thoracoscopic Lobectomy,3.5,6.0,2800.0,"POD1_CHEST_TUBE_MGMT:MAJOR:SURGICAL_COMPLICATION:Persistent air leak >48h",Prolonged Air Leak
+PT-GYN-005,GYNECOLOGIC,Total Laparoscopic Hysterectomy,1.5,1.5,2100.0,"POD0_EARLY_FEEDING:MINOR:PATIENT_FACTOR:Mild post-op nausea delayed fluids",

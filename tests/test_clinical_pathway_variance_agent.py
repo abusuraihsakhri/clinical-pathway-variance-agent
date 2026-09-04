@@ -97,6 +97,19 @@ class TestClinicalPathwayVarianceAgentFull(unittest.TestCase):
             res = analyze_patient_dict(payload)
             self.assertEqual(res["root_cause_breakdown"][rc.value], 1)
 
+    def test_cli_batch_processing(self):
+        from cli import process_csv_batch
+        sample_csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "sample.csv"))
+        out_csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "test_batch_out.csv"))
+        try:
+            count = process_csv_batch(sample_csv_path, out_csv_path)
+            self.assertEqual(count, 5)
+            self.assertTrue(os.path.exists(out_csv_path))
+        finally:
+            if os.path.exists(out_csv_path):
+                os.remove(out_csv_path)
+
 
 if __name__ == "__main__":
     unittest.main()
+
