@@ -15,3 +15,8 @@ assert.equal(result.predictedExcessLosDays, 3.46);
 assert.equal(result.estimatedExcessCostUsd, 11460);
 assert.equal(result.varianceTier, "HIGH");
 console.log("Browser engine parity smoke test passed.");
+
+const empty = analyzeCase({ specialty: "ORTHOPEDIC", expectedLos: 2, dailyRate: 2000, milestones: {}, complications: 0 });
+assert.equal(empty.compliantMilestones, 0);
+assert.equal(empty.nonCompliantMilestones, PROTOCOLS.ORTHOPEDIC.length);
+assert.equal(empty.varianceTier, "CRITICAL");
