@@ -167,7 +167,7 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
         fieldnames = list(reader.fieldnames or [])
         rows = list(reader)
 
-    out_fields = fieldnames + [
+    generated_fields = [
         "total_milestones",
         "compliant_milestones",
         "compliance_rate_pct",
@@ -179,17 +179,21 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
         "estimated_excess_cost_usd",
         "variance_count",
     ]
+    out_fields = fieldnames + [name for name in generated_fields if name not in fieldnames]
 
     out_rows = []
-    for r in rows:
-        spec_str = r.get("specialty", "COLORECTAL").strip().upper()
+    for row_number, r in enumerate(rows, start=2):
+        patient_id = (r.get("patient_id") or "PT-UNKNOWN").strip() or "PT-UNKNOWN"
+        spec_str = (r.get("specialty") or "COLORECTAL").strip().upper()
         try:
             specialty = SurgicalSpecialty(spec_str)
-        except ValueError:
-            specialty = SurgicalSpecialty.COLORECTAL
+        except ValueError as exc:
+            raise ValueError(
+                f"Row {row_number} ({patient_id}): unsupported specialty '{spec_str}'."
+            ) from exc
 
         protocol = ClinicalPathwayVarianceEngine.get_protocol_milestones(specialty)
-        proto_map = {m.milestone_id: m for m in protocol}
+        protocol_ids = {m.milestone_id for m in protocol}
 
         # Parse variance milestones if provided
         # Format: "MILESTONE_ID:SEVERITY:ROOT_CAUSE:REASON;..."
@@ -197,9 +201,14 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
         custom_variances: Dict[str, Dict[str, Any]] = {}
         if var_milestones_str:
             for item in var_milestones_str.split(";"):
-                parts = item.strip().split(":")
+                parts = item.strip().split(":", 3)
                 if parts and parts[0]:
                     m_id = parts[0].strip()
+                    if m_id not in protocol_ids:
+                        raise ValueError(
+                            f"Row {row_number} ({patient_id}): unknown milestone '{m_id}' "
+                            f"for specialty {specialty.value}."
+                        )
                     sev = parts[1].strip() if len(parts) > 1 else "MODERATE"
                     rc = parts[2].strip() if len(parts) > 2 else "PATIENT_FACTOR"
                     reason = parts[3].strip() if len(parts) > 3 else f"Variance in {m_id}"
@@ -215,12 +224,18 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
                 c_info = custom_variances[m.milestone_id]
                 try:
                     sev = VarianceSeverity(c_info["severity"].upper())
-                except ValueError:
-                    sev = VarianceSeverity.MODERATE
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Row {row_number} ({patient_id}): invalid severity "
+                        f"'{c_info['severity']}' for milestone {m.milestone_id}."
+                    ) from exc
                 try:
                     rc = VarianceRootCause(c_info["root_cause"].upper())
-                except ValueError:
-                    rc = VarianceRootCause.PATIENT_FACTOR
+                except ValueError as exc:
+                    raise ValueError(
+                        f"Row {row_number} ({patient_id}): invalid root cause "
+                        f"'{c_info['root_cause']}' for milestone {m.milestone_id}."
+                    ) from exc
 
                 milestone_records.append(
                     ClinicalMilestoneRecord(
@@ -248,13 +263,22 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
         if comp_str:
             complications = [c.strip() for c in comp_str.split(";") if c.strip()]
 
-        expected_los = float(r.get("expected_los_days", 3.0) or 3.0)
-        actual_los_str = r.get("actual_los_days", "").strip()
-        actual_los = float(actual_los_str) if actual_los_str else None
-        daily_rate = float(r.get("daily_bed_rate_usd", 2400.0) or 2400.0)
+        try:
+            expected_los = float(r.get("expected_los_days", 3.0) or 3.0)
+            actual_los_str = (r.get("actual_los_days") or "").strip()
+            actual_los = float(actual_los_str) if actual_los_str else None
+            daily_rate = float(r.get("daily_bed_rate_usd", 2400.0) or 2400.0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Row {row_number} ({patient_id}): LOS and daily bed-rate fields must be numeric."
+            ) from exc
+        if expected_los < 0 or daily_rate < 0 or (actual_los is not None and actual_los < 0):
+            raise ValueError(
+                f"Row {row_number} ({patient_id}): LOS and daily bed-rate values must be non-negative."
+            )
 
         patient_rec = PatientPathwayRecord(
-            patient_id=r.get("patient_id", "PT-UNKNOWN"),
+            patient_id=patient_id,
             specialty=specialty,
             procedure_name=r.get("procedure_name", f"Standard {specialty.value} Procedure"),
             expected_los_days=expected_los,
@@ -265,7 +289,10 @@ def process_csv_batch(input_csv: str, output_csv: str) -> int:
         )
 
         analysis = ClinicalPathwayVarianceEngine.evaluate_patient_pathway(patient_rec)
-        row_dict = dict(r)
+        row_dict = {
+            key: ("'" + value if isinstance(value, str) and value.startswith(("=", "+", "-", "@")) else value)
+            for key, value in r.items()
+        }
         row_dict["total_milestones"] = analysis.total_milestones
         row_dict["compliant_milestones"] = analysis.compliant_milestones
         row_dict["compliance_rate_pct"] = f"{analysis.compliance_rate_pct:.1f}"
