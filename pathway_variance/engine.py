@@ -4,8 +4,7 @@ Domain: Clinical Operations & Evidence-Based Surgical Care
 Standard: ERAS® (Enhanced Recovery After Surgery) Society Guidelines
 """
 
-import math
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Any
 from .models import (
     PathwayPhase,
     VarianceSeverity,
@@ -96,7 +95,7 @@ class ClinicalPathwayVarianceEngine:
         VarianceSeverity.CRITICAL: 10.0,
     }
 
-    # Clinical regression coefficients for excess length of stay (days) by variance type
+    # Illustrative heuristic coefficients. These are not validated patient-level predictors.
     LOS_COEFFICIENTS: Dict[VarianceSeverity, float] = {
         VarianceSeverity.MINOR: 0.15,
         VarianceSeverity.MODERATE: 0.65,
@@ -247,24 +246,24 @@ class ClinicalPathwayVarianceEngine:
         cls, milestone_id: str, severity: VarianceSeverity, root_cause: VarianceRootCause
     ) -> str:
         plans = {
-            "INTRA_GDFT": "Re-calibrate intraoperative fluid algorithm; utilize dynamic stroke volume variation (SVV) monitoring.",
-            "POD1_FOLEY_REMOVAL": "Implement nurse-driven Foley catheter removal protocol on POD 1 morning; evaluate for ultrasound bladder scan if post-void retention occurs.",
-            "POD0_MOBILIZATION": "Schedule designated nursing or physical therapy assist within 2-4 hours post-extubation.",
-            "POD1_SOLID_DIET": "Initiate gut motility stimulation (e.g. gum chewing, alvimopan for bowel surgery) and anti-emetic regimen.",
-            "INTRA_MULTIMODAL_ANALGESIA": "Consult acute pain service for regional block rescue (TAP/ESP) and convert IV patient-controlled analgesia (PCA) to scheduled oral non-opioids.",
-            "PRE_FASTING": "Provide standardized carbohydrate loading drinks and patient education in preoperative clinic.",
-            "POD1_CHEST_TUBE_MGMT": "Utilize digital pleural drainage system to objectively measure air leak and trigger removal when <20 mL/min for 6 hours.",
+            "INTRA_GDFT": "Review the intraoperative fluid strategy and local monitoring protocol; confirm thresholds against current local guidance.",
+            "POD1_FOLEY_REMOVAL": "Review the local urinary catheter removal protocol and documented reasons for delay.",
+            "POD0_MOBILIZATION": "Review postoperative mobilisation timing, symptoms, and staffing barriers against the local pathway.",
+            "POD1_SOLID_DIET": "Review postoperative nausea, ileus, and feeding barriers using the local recovery pathway.",
+            "INTRA_MULTIMODAL_ANALGESIA": "Review the multimodal analgesia plan with the responsible perioperative or acute pain team.",
+            "PRE_FASTING": "Review preoperative fasting and carbohydrate-loading instructions against the local protocol and contraindications.",
+            "POD1_CHEST_TUBE_MGMT": "Review digital drainage trends and chest-tube removal criteria against the local thoracic pathway.",
         }
         if milestone_id in plans:
             return plans[milestone_id]
         if root_cause == VarianceRootCause.CLINICIAN_PRACTICE:
-            return "Conduct clinical peer audit and align with departmental ERAS order sets."
+            return "Review the variance with the clinical team and compare practice with the local pathway."
         elif root_cause == VarianceRootCause.HOSPITAL_SYSTEM:
-            return "Escalate resource bottleneck to clinical unit coordinator and perioperative committee."
+            return "Review the documented system or resource barrier with the responsible service."
         elif root_cause == VarianceRootCause.PATIENT_FACTOR:
-            return "Initiate tailored symptom management (PONV prophylaxis, pre-op optimization)."
+            return "Review patient-specific barriers and symptom management with the responsible clinical team."
         else:
-            return "Execute multi-disciplinary team evaluation and complication management pathway."
+            return "Review the complication through the relevant multidisciplinary and local management pathway."
 
     @classmethod
     def _generate_global_recommendations(
@@ -272,65 +271,101 @@ class ClinicalPathwayVarianceEngine:
     ) -> List[str]:
         recs = []
         if cci < 75.0:
-            recs.append(f"Cumulative Compliance Index is {cci:.1f}% (Below 75% target threshold). Multidisciplinary clinical review required.")
+            recs.append(f"Cumulative Compliance Index is {cci:.1f}% (below the tool's 75% review threshold). Consider multidisciplinary pathway review.")
         
         has_foley_var = any("FOLEY" in v.milestone_id for v in variances)
         if has_foley_var:
-            recs.append("Trigger CAUTI prevention pathway: verify strict criteria for delayed catheter removal.")
+            recs.append("Review the reason for delayed catheter removal against the local CAUTI-prevention and catheter-use pathway.")
 
         has_opioid_var = any("ANALGESIA" in v.milestone_id or "OPIOID" in v.milestone_id for v in variances)
         if has_opioid_var:
-            recs.append("Initiate Acute Pain Service consult for multimodal non-opioid regimen transition.")
+            recs.append("Review the multimodal analgesia variance with the responsible perioperative or acute pain team.")
 
         has_fluid_var = any("GDFT" in v.milestone_id or "FLUID" in v.milestone_id for v in variances)
         if has_fluid_var:
-            recs.append("Audit intraoperative fluid administration volumes to prevent tissue edema and delayed gastrointestinal recovery.")
+            recs.append("Review intraoperative fluid administration against the local perioperative fluid-management pathway.")
 
         if risk_tier in ("HIGH", "CRITICAL"):
-            recs.append("Flag for daily perioperative variance rounds and expedited discharge planning conference.")
+            recs.append("Consider more frequent pathway review and discharge-planning discussion for the recorded variance burden.")
 
         if not recs:
-            recs.append("Patient is progressing within optimal ERAS trajectory. Maintain routine post-op recovery protocol.")
+            recs.append("No variance action is generated by this tool; continue assessment using the applicable local pathway.")
         return recs
 
 
 def analyze_patient_dict(data: Dict[str, Any]) -> Dict[str, Any]:
-    """Helper entry point to evaluate patient data dictionary and return serializable results."""
+    """Validate and evaluate a patient dictionary, returning a serializable result.
+
+    Partial milestone lists are accepted; omitted protocol milestones are treated as
+    missing/non-compliant by the engine. Invalid specialties, enum values, duplicate IDs,
+    and unknown milestone IDs raise ValueError rather than silently selecting another pathway.
+    """
+    if not isinstance(data, dict):
+        raise ValueError("Input must be a dictionary.")
+
     specialty_str = str(data.get("specialty", "COLORECTAL")).upper()
     try:
         specialty = SurgicalSpecialty(specialty_str)
-    except ValueError:
-        specialty = SurgicalSpecialty.COLORECTAL
+    except ValueError as exc:
+        allowed = ", ".join(s.value for s in SurgicalSpecialty)
+        raise ValueError(f"Unsupported specialty '{specialty_str}'. Expected one of: {allowed}.") from exc
 
+    raw_milestones = data.get("milestones", [])
+    if not isinstance(raw_milestones, list):
+        raise ValueError("'milestones' must be a list.")
+
+    protocol_ids = {m.milestone_id for m in ERAS_PROTOCOLS[specialty]}
+    protocol_phases = {m.milestone_id: m.phase for m in ERAS_PROTOCOLS[specialty]}
+    seen_ids = set()
     milestone_records = []
-    for m in data.get("milestones", []):
-        m_id = m.get("milestone_id", "")
-        status = bool(m.get("status", False))
+    for index, m in enumerate(raw_milestones):
+        if not isinstance(m, dict):
+            raise ValueError(f"Milestone at index {index} must be an object.")
+        m_id = str(m.get("milestone_id", "")).strip()
+        if not m_id:
+            raise ValueError(f"Milestone at index {index} is missing 'milestone_id'.")
+        if m_id not in protocol_ids:
+            raise ValueError(f"Unknown milestone '{m_id}' for specialty {specialty.value}.")
+        if m_id in seen_ids:
+            raise ValueError(f"Duplicate milestone '{m_id}'.")
+        seen_ids.add(m_id)
+
+        status_raw = m.get("status", False)
+        if not isinstance(status_raw, bool):
+            raise ValueError(f"Milestone '{m_id}' status must be true or false.")
+        status = status_raw
         obs_val = m.get("observed_value")
         v_reason = m.get("variance_reason")
-        
-        rc_str = m.get("root_cause")
+
         root_cause = None
-        if rc_str:
+        rc_str = m.get("root_cause")
+        if rc_str is not None:
             try:
-                root_cause = VarianceRootCause(str(rc_str))
-            except ValueError:
-                root_cause = VarianceRootCause.PATIENT_FACTOR
+                root_cause = VarianceRootCause(str(rc_str).upper())
+            except ValueError as exc:
+                raise ValueError(f"Invalid root_cause '{rc_str}' for milestone '{m_id}'.") from exc
 
-        sev_str = m.get("severity")
         severity = None
-        if sev_str:
+        sev_str = m.get("severity")
+        if sev_str is not None:
             try:
-                severity = VarianceSeverity(str(sev_str))
-            except ValueError:
-                severity = VarianceSeverity.MODERATE
+                severity = VarianceSeverity(str(sev_str).upper())
+            except ValueError as exc:
+                raise ValueError(f"Invalid severity '{sev_str}' for milestone '{m_id}'.") from exc
 
-        notes = m.get("notes", "")
-        phase_str = m.get("phase", "POD_1")
-        try:
-            phase = PathwayPhase(str(phase_str))
-        except ValueError:
-            phase = PathwayPhase.POD_1
+        proto_phase = protocol_phases[m_id]
+        phase_str = m.get("phase")
+        if phase_str is None:
+            phase = proto_phase
+        else:
+            try:
+                phase = PathwayPhase(str(phase_str).upper())
+            except ValueError as exc:
+                raise ValueError(f"Invalid phase '{phase_str}' for milestone '{m_id}'.") from exc
+            if phase != proto_phase:
+                raise ValueError(
+                    f"Milestone '{m_id}' belongs to phase {proto_phase.value}, not {phase.value}."
+                )
 
         milestone_records.append(
             ClinicalMilestoneRecord(
@@ -341,21 +376,41 @@ def analyze_patient_dict(data: Dict[str, Any]) -> Dict[str, Any]:
                 variance_reason=v_reason,
                 root_cause=root_cause,
                 severity=severity,
-                notes=notes,
+                notes=str(m.get("notes", "")),
             )
         )
+
+    try:
+        expected_los = float(data.get("expected_los_days", 3.0))
+        daily_bed_rate = float(data.get("daily_bed_rate_usd", 2400.0))
+        actual_raw = data.get("actual_los_days")
+        actual_los = float(actual_raw) if actual_raw is not None else None
+    except (TypeError, ValueError) as exc:
+        raise ValueError("LOS and daily bed-rate fields must be numeric.") from exc
+    if expected_los < 0:
+        raise ValueError("expected_los_days must be non-negative.")
+    if daily_bed_rate < 0:
+        raise ValueError("daily_bed_rate_usd must be non-negative.")
+    if actual_los is not None and actual_los < 0:
+        raise ValueError("actual_los_days must be non-negative when provided.")
+
+    complications = data.get("complications", [])
+    if not isinstance(complications, list) or not all(isinstance(x, str) for x in complications):
+        raise ValueError("'complications' must be a list of strings.")
+
+    patient_risk_factors = data.get("patient_risk_factors", {})
+    if not isinstance(patient_risk_factors, dict):
+        raise ValueError("'patient_risk_factors' must be an object.")
 
     patient_rec = PatientPathwayRecord(
         patient_id=str(data.get("patient_id", "PT-UNKNOWN")),
         specialty=specialty,
         procedure_name=str(data.get("procedure_name", "Elective Surgery")),
-        expected_los_days=float(data.get("expected_los_days", 3.0)),
-        actual_los_days=float(data["actual_los_days"]) if "actual_los_days" in data and data["actual_los_days"] is not None else None,
-        daily_bed_rate_usd=float(data.get("daily_bed_rate_usd", 2400.0)),
+        expected_los_days=expected_los,
+        actual_los_days=actual_los,
+        daily_bed_rate_usd=daily_bed_rate,
         milestones=milestone_records,
-        patient_risk_factors=data.get("patient_risk_factors", {}),
-        complications=data.get("complications", []),
+        patient_risk_factors=patient_risk_factors,
+        complications=complications,
     )
-
-    engine_res = ClinicalPathwayVarianceEngine.evaluate_patient_pathway(patient_rec)
-    return engine_res.to_dict()
+    return ClinicalPathwayVarianceEngine.evaluate_patient_pathway(patient_rec).to_dict()

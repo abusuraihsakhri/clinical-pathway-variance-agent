@@ -110,6 +110,59 @@ class TestClinicalPathwayVarianceAgentFull(unittest.TestCase):
                 os.remove(out_csv_path)
 
 
+    def test_cli_batch_rejects_unknown_specialty(self):
+        import csv
+        import tempfile
+        from cli import process_csv_batch
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = os.path.join(tmpdir, "input.csv")
+            output_path = os.path.join(tmpdir, "output.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=[
+                    "patient_id", "specialty", "expected_los_days", "daily_bed_rate_usd"
+                ])
+                writer.writeheader()
+                writer.writerow({
+                    "patient_id": "PT-BAD-SPEC",
+                    "specialty": "UNKNOWN",
+                    "expected_los_days": "3",
+                    "daily_bed_rate_usd": "2400",
+                })
+            with self.assertRaises(ValueError):
+                process_csv_batch(input_path, output_path)
+
+    def test_cli_batch_sanitizes_spreadsheet_formula_fields(self):
+        import csv
+        import tempfile
+        from cli import process_csv_batch
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_path = os.path.join(tmpdir, "input.csv")
+            output_path = os.path.join(tmpdir, "output.csv")
+            with open(input_path, "w", encoding="utf-8", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=[
+                    "patient_id", "specialty", "procedure_name",
+                    "expected_los_days", "daily_bed_rate_usd",
+                    "variances_milestones", "complications",
+                ])
+                writer.writeheader()
+                writer.writerow({
+                    "patient_id": "=2+2",
+                    "specialty": "COLORECTAL",
+                    "procedure_name": "@SUM(1,1)",
+                    "expected_los_days": "3",
+                    "daily_bed_rate_usd": "2400",
+                    "variances_milestones": "",
+                    "complications": "",
+                })
+            process_csv_batch(input_path, output_path)
+            with open(output_path, "r", encoding="utf-8", newline="") as handle:
+                row = next(csv.DictReader(handle))
+            self.assertEqual(row["patient_id"], "'=2+2")
+            self.assertEqual(row["procedure_name"], "'@SUM(1,1)")
+
+
 if __name__ == "__main__":
     unittest.main()
 

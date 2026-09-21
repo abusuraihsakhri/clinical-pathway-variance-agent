@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Browser-based ERAS pathway variance calculator with weighted adherence and illustrative LOS/cost estimates.">
+  <meta name="color-scheme" content="light dark">
+  <title>Clinical Pathway Variance</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">ERAS pathway review</p>
+        <h1>Clinical Pathway Variance</h1>
+      </div>
+      <div class="top-actions">
+        <button class="button secondary" id="exampleBtn" type="button">Load example</button>
+        <button class="icon-button" id="themeBtn" type="button" aria-label="Switch to dark theme" title="Toggle theme">◐</button>
+      </div>
+    </header>
+
+    <aside class="notice" role="note">
+      <strong>Research / quality-improvement tool.</strong> Protocol definitions and LOS/cost coefficients are configurable heuristics and are not validated patient-level predictions or clinical advice.
+    </aside>
+
+    <main class="workspace">
+      <section class="panel input-panel" aria-labelledby="inputTitle">
+        <div class="panel-head">
+          <div><p class="section-kicker">Case setup</p><h2 id="inputTitle">Pathway inputs</h2></div>
+          <button class="text-button" id="resetBtn" type="button">Reset</button>
+        </div>
+
+        <div class="field-grid">
+          <label>Specialty
+            <select id="specialty"></select>
+          </label>
+          <label>Expected LOS (days)
+            <input id="expectedLos" type="number" min="0" step="0.1" inputmode="decimal">
+          </label>
+          <label>Daily bed rate (USD)
+            <input id="dailyRate" type="number" min="0" step="50" inputmode="decimal" value="2400">
+          </label>
+          <label>Complications (count)
+            <input id="complications" type="number" min="0" step="1" inputmode="numeric" value="0">
+          </label>
+        </div>
+
+        <div class="milestone-heading">
+          <div><p class="section-kicker">Milestones</p><h3>Mark achieved items</h3></div>
+          <span id="milestoneCount" class="badge"></span>
+        </div>
+        <div class="milestone-list" id="milestoneList" aria-label="Pathway milestones"></div>
+        <div class="analyze-bar">
+          <button class="button primary" id="analyzeBtn" type="button">Analyze pathway</button>
+        </div>
+      </section>
+
+      <section class="panel result-panel" aria-labelledby="resultTitle" aria-live="polite">
+        <div class="panel-head">
+          <div><p class="section-kicker">Analysis</p><h2 id="resultTitle">Results</h2></div>
+          <button class="text-button" id="exportBtn" type="button" disabled>Export JSON</button>
+        </div>
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">∑</div>
+          <h3>Ready to calculate</h3>
+          <p>Set the pathway status, then select <strong>Analyze pathway</strong>.</p>
+        </div>
+        <div id="results" class="results" hidden>
+          <div class="metric-grid">
+            <article class="metric"><span>Weighted adherence</span><strong id="cciMetric">—</strong></article>
+            <article class="metric"><span>Milestones achieved</span><strong id="complianceMetric">—</strong></article>
+            <article class="metric"><span>Variance burden</span><strong id="burdenMetric">—</strong></article>
+            <article class="metric"><span>Variance tier</span><strong id="tierMetric">—</strong></article>
+            <article class="metric"><span>Illustrative excess LOS</span><strong id="losMetric">—</strong></article>
+            <article class="metric"><span>Illustrative excess cost</span><strong id="costMetric">—</strong></article>
+          </div>
+          <div class="result-section">
+            <div class="result-section-head"><h3>Recorded variances</h3><span id="varianceCount" class="badge"></span></div>
+            <div id="varianceList" class="variance-list"></div>
+          </div>
+        </div>
+        <p class="error" id="errorMessage" role="alert" hidden></p>
+      </section>
+    </main>
+    <footer>Runs locally in your browser. No case data is transmitted by this application.</footer>
+  </div>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
