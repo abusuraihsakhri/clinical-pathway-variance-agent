@@ -1,166 +1,83 @@
 # Clinical Pathway Variance Agent
 
-> **Domain:** Perioperative Operations & Evidence-Based Clinical Pathways  
-> **Clinical Standard:** ERAS® (Enhanced Recovery After Surgery) Society Guidelines  
-> **Core Objective:** Multi-specialty pathway compliance tracking, variance burden quantification, LOS regression modeling, and actionable clinical remediation.
+A Python and browser-based tool for reviewing pathway adherence, recording perioperative variances, and calculating weighted compliance metrics across five built-in surgical pathway profiles.
 
----
+> **Important:** The included milestone definitions, variance weights, LOS coefficients, cost coefficients, and thresholds are configurable heuristics for research, education, or quality-improvement workflows. They are not validated patient-level outcome predictions, clinical guidelines, or medical advice. Confirm all pathway definitions and thresholds against current local policy and source guidelines before operational use.
 
-## 📖 Clinical Overview
+## Features
 
-The **Clinical Pathway Variance Agent** evaluates surgical patient trajectories against validated Enhanced Recovery After Surgery (ERAS®) multimodal protocols. Surgical pathways establish evidence-based milestones across preoperative, intraoperative, and postoperative recovery days (POD 0 through discharge).
+- Colorectal, orthopedic, bariatric, gynecologic, and thoracic pathway profiles.
+- Raw milestone compliance and a weight-adjusted Cumulative Compliance Index (CCI).
+- Weighted variance burden, root-cause categorization, and an algorithmic variance tier.
+- Illustrative excess length-of-stay and cost estimates using explicit coefficients in `pathway_variance/engine.py`.
+- Single-case CLI, JSON input, interactive review, and CSV batch processing.
+- Static browser application suitable for GitHub Pages; all browser calculations run locally without a backend.
 
-Deviations from standard care pathways—termed **clinical variances**—prolong hospital Length of Stay (LOS), increase excess hospital costs, and predispose patients to preventable complications (such as CAUTIs, surgical site infections, pulmonary complications, and prolonged postoperative ileus).
+## Browser application
 
-### Key Clinical Capabilities
-- **Multi-Specialty ERAS Protocols:** Built-in protocol benchmarks for **Colorectal**, **Orthopedic**, **Bariatric**, **Gynecologic**, and **Thoracic** surgery.
-- **Quantitative Compliance Tracking:** Calculates raw compliance rate (%) alongside weight-adjusted **Cumulative Compliance Index (CCI)**.
-- **Total Variance Burden Score (TVBS):** Weighted severity burden reflecting physiological impact and systemic deviation.
-- **LOS & Cost Impact Projections:** Actuarial regression models projecting incremental inpatient days and direct intervention expenses.
-- **Root-Cause Attribution:** Categorization across Patient Factors, Clinician Practice, Hospital System, and Surgical Complications.
-- **Targeted Clinical Recommendations:** Automated action plans for CAUTI prevention, fluid management audit, and multimodal opioid-sparing analgesia.
+The web interface provides a compact light theme, dark-mode toggle, specialty selector, milestone checklist, variance severity/root-cause controls, an **Analyze pathway** button, and JSON export. It uses a dependency-free JavaScript port of the same weighting and coefficient logic as the Python engine. CI includes a parity smoke test for the example case.
 
----
+No case data is transmitted by the browser application. Do not enter identifiable patient information into public/shared devices or files.
 
-## 📐 Clinical Methodology & Mathematical Formulations
+## Python quick start
 
-### 1. Cumulative Compliance Index (CCI)
+Python 3.9 or newer is required. The core package has no runtime dependencies.
 
-Each clinical milestone $m_i$ possesses an evidence-based clinical importance weight $w_i \in [1.0, 3.0]$. The Cumulative Compliance Index quantifies weighted milestone concordance:
-
-$$\text{CCI} = \left( \frac{\sum_{i \in \text{Compliant}} w_i}{\sum_{i=1}^{N} w_i} \right) \times 100\%$$
-
-| Compliance Range | Tier Status | Clinical Action |
-|:---|:---|:---|
-| **$\ge 85.0\%$** | Optimal Adherence | Maintain standard pathway protocols |
-| **$70.0\% - 84.9\%$** | Acceptable / Moderate Variance | Unit-level clinical variance audit |
-| **$< 70.0\%$** | Suboptimal Adherence | Mandatory multidisciplinary perioperative review |
-
-### 2. Total Variance Burden Score (TVBS)
-
-Each detected variance is assigned a severity weight $S(v)$ based on clinical risk:
-
-$$\text{TVBS} = \sum_{v \in \text{Variances}} \Big( S(v) \times w_v \Big) + \sum_{c \in \text{Complications}} 10.0$$
-
-| Variance Severity | Weight ($S$) | Clinical Example |
-|:---|:---|:---|
-| **MINOR** | 1.0 | Delayed mobilization (<2 hours late), mild PONV resolved with single dose |
-| **MODERATE** | 2.5 | Unplanned Foley catheter retention past POD 1, delayed solid diet >24h |
-| **MAJOR** | 5.0 | Fluid overload >35 mL/kg/day, omission of regional block, severe ileus |
-| **CRITICAL** | 10.0 | Anastomotic breakdown, re-intubation, unplanned re-operation or ICU transfer |
-
-### 3. Predicted Excess Length of Stay & Cost Impact
-
-$$\Delta \text{LOS}_{\text{excess}} = \sum_{v \in \text{Variances}} \left( \beta_{\text{LOS}}(S_v) \times \frac{w_v}{2.0} \right) + (2.50 \times N_{\text{complications}})$$
-
-$$\text{Total Predicted LOS} = \text{Expected LOS}_{\text{baseline}} + \Delta \text{LOS}_{\text{excess}}$$
-
-$$\text{Estimated Excess Cost} = \sum_{v} C_{\text{direct}}(S_v) + (3500.00 \times N_{\text{complications}}) + (\Delta \text{LOS}_{\text{excess}} \times \text{Daily Bed Rate})$$
-
-| Severity | $\beta_{\text{LOS}}$ (Days) | $C_{\text{direct}}$ (USD) |
-|:---|:---|:---|
-| **MINOR** | +0.15 days | $150.00 |
-| **MODERATE** | +0.65 days | $650.00 |
-| **MAJOR** | +1.85 days | $2,200.00 |
-| **CRITICAL** | +4.20 days | $7,500.00 |
-
----
-
-## 🏥 Supported Specialty Protocols
-
-| Specialty | Key Milestones Evaluated | Benchmark LOS |
-|:---|:---|:---|
-| **COLORECTAL** | CHO loading, GDFT (<30 mL/kg), multimodal analgesia, early oral fluids, POD 1 Foley removal, POD 2 bowel recovery | 3.0 days |
-| **ORTHOPEDIC** | Joint education class, pre-incision TXA, neuraxial/adductor canal block, same-day PT ambulation, cryo-compression | 2.0 days |
-| **BARIATRIC** | CHO drink 2h pre-op, opioid-sparing anesthesia, 2h post-op ambulation, graduated 30-50 mL/h sip protocol | 2.0 days |
-| **GYNECOLOGIC** | Pre-op CHO loading, TAP block + NSAIDs, euvolemic fluid balance, early feeding, <=24h Foley catheter removal | 1.5 days |
-| **THORACIC** | Inspiratory muscle training, thoracic paravertebral block, lung-protective ventilation, digital air leak monitoring | 3.5 days |
-
----
-
-## 💻 CLI Quickstart & Usage
-
-### 1. Interactive Case Evaluation
-Walk through an interactive questionnaire to evaluate an individual patient against specialty ERAS milestones:
-```bash
-python cli.py --interactive
-```
-
-### 2. Demonstration Colorectal Case
-Run the clinical variance engine on a realistic laparoscopic colectomy case:
 ```bash
 python cli.py --demo
-```
-
-### 3. List Specialty Milestones
-Inspect ERAS Society standardized milestone catalog and weights:
-```bash
 python cli.py --list-protocols
-```
-
-### 4. JSON File Evaluation
-Evaluate a single patient record JSON file:
-```bash
 python cli.py --file patient_case.json --json
-```
-
-### 5. High-Throughput Batch Processing
-Process cohort data from CSV format with automated variance calculation and impact forecasting:
-```bash
 python cli.py batch -i sample.csv -o results.csv
 ```
-Or use the equivalent flag syntax:
+
+Install the package locally if you want the console commands:
+
 ```bash
-python cli.py batch --input sample.csv --output results.csv
+python -m pip install .
+clinical-pathway-variance-agent --demo
 ```
 
----
+## CSV batch format
 
-## 📊 CSV Input & Output Data Schema
+`sample.csv` demonstrates the accepted columns. `variances_milestones` uses semicolon-separated entries in this form:
 
-### Input Columns (`sample.csv`)
+```text
+MILESTONE_ID:SEVERITY:ROOT_CAUSE:REASON
+```
 
-| Column Name | Type | Description | Example |
-|:---|:---|:---|:---|
-| `patient_id` | String | Unique patient or case identifier | `PT-COL-001` |
-| `specialty` | Enum | Surgical specialty protocol | `COLORECTAL` |
-| `procedure_name` | String | Surgical procedure descriptor | `Laparoscopic Sigmoid Colectomy` |
-| `expected_los_days` | Float | Benchmark length of stay in days | `3.0` |
-| `actual_los_days` | Float (Opt) | Observed actual discharge LOS | `3.5` |
-| `daily_bed_rate_usd` | Float | Hospital per-diem ward/ICU bed rate | `2400.0` |
-| `variances_milestones`| String (Opt) | Delimited custom non-compliant milestones (`ID:SEVERITY:ROOT_CAUSE:REASON;...`) | `INTRA_GDFT:MAJOR:CLINICIAN_PRACTICE:Excess fluid` |
-| `complications` | String (Opt) | Semicolon-delimited surgical complications | `Prolonged Air Leak` |
+The parser preserves additional colons inside `REASON`. Unsupported specialties, milestone IDs, severities, root causes, and malformed boolean values are rejected rather than silently mapped to another pathway.
 
-### Output Generated Columns (`results.csv`)
+## Calculation model
 
-| Output Field | Description |
-|:---|:---|
-| `total_milestones` | Total protocol milestones evaluated for the specialty |
-| `compliant_milestones` | Number of successfully achieved milestones |
-| `compliance_rate_pct` | Unweighted adherence percentage |
-| `cumulative_compliance_index` | Weight-adjusted Cumulative Compliance Index (CCI %) |
-| `total_variance_burden_score` | Cumulative weighted variance burden score (TVBS) |
-| `clinical_risk_tier` | Multi-tier classification: `LOW`, `MODERATE`, `HIGH`, `CRITICAL` |
-| `predicted_total_los_days` | Model-projected total hospital stay (days) |
-| `predicted_excess_los_days` | Incremental days over clinical benchmark |
-| `estimated_excess_cost_usd` | Total direct + indirect excess operational expense |
-| `variance_count` | Total distinct clinical pathway variances recorded |
+For each specialty, the engine assigns a weight `w` to each milestone. Weighted adherence is:
 
----
+```text
+CCI = achieved milestone weight / total milestone weight × 100
+```
 
-## 🧪 Verification & Testing
+For a recorded variance, the engine combines the milestone weight with a severity weight and applies fixed illustrative LOS and direct-cost coefficients. Complications add fixed burden, LOS, and direct-cost increments. These values are transparent in the source and should be recalibrated before any institutional use.
 
-Execute the test suite across all clinical calculation engines and CLI batch processors:
+The output field currently named `clinical_risk_tier` is retained for API compatibility; it is an algorithmic **variance tier**, not a validated estimate of patient risk.
+
+## Validation and testing
+
 ```bash
 python -m pytest -p no:zarr -v
-```
-
-Execute the CLI batch smoke test:
-```bash
 python cli.py batch -i sample.csv -o out_smoke.csv
+node tests/browser_smoke.mjs
+python -m build --wheel
 ```
 
----
+GitHub Actions runs the Python test suite on Python 3.10–3.12, exercises the CLI batch path, checks the browser engine, builds the wheel, and verifies installed console entry points.
 
-## 📄 License
-MIT License. Developed for clinical operational excellence and evidence-based surgical quality improvement.
+## Technology
+
+- Python standard library (`dataclasses`, `enum`, `argparse`, `csv`, `json`)
+- Dependency-free HTML/CSS/JavaScript browser UI
+- GitHub Actions and GitHub Pages
+
+The browser app targets current versions of Chrome, Edge, Firefox, and Safari. JavaScript must be enabled.
+
+## License
+
+MIT License. See `LICENSE`.
