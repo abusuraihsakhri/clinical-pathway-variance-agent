@@ -85,13 +85,13 @@ export function analyzeCase({ specialty, expectedLos, dailyRate, milestones = {}
   for (const [id, phase, name, weight] of protocol) {
     totalWeight += weight;
     const observed = milestones[id];
-    if (!observed || observed.status !== false) {
+    if (observed && observed.status === true) {
       compliant += 1;
       achievedWeight += weight;
       continue;
     }
-    const severity = observed.severity || defaultSeverity(id, phase);
-    const rootCause = observed.rootCause || "CLINICIAN_PRACTICE";
+    const severity = observed?.severity || defaultSeverity(id, phase);
+    const rootCause = observed?.rootCause || (observed ? "CLINICIAN_PRACTICE" : "HOSPITAL_SYSTEM");
     if (!(severity in SEVERITY_WEIGHTS)) throw new Error(`Unsupported severity for ${id}.`);
     if (!(rootCause in rootCauses)) throw new Error(`Unsupported root cause for ${id}.`);
     const losImpact = LOS_COEFFICIENTS[severity] * (weight / 2);
