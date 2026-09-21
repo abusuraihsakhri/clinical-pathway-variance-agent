@@ -288,8 +288,8 @@ class TestDictParserAndEdgeCases(unittest.TestCase):
             "expected_los_days": 5.0,
             "milestones": []
         }
-        res_dict = analyze_patient_dict(data)
-        self.assertEqual(res_dict["specialty"], "COLORECTAL")
+        with self.assertRaises(ValueError):
+            analyze_patient_dict(data)
 
     def test_analyze_patient_dict_invalid_severity(self):
         data = {
@@ -299,8 +299,8 @@ class TestDictParserAndEdgeCases(unittest.TestCase):
                 {"milestone_id": "PRE_TXA", "status": False, "severity": "SUPER_CRITICAL_INVALID"}
             ]
         }
-        res_dict = analyze_patient_dict(data)
-        self.assertEqual(res_dict["patient_id"], "PT-JSON-102")
+        with self.assertRaises(ValueError):
+            analyze_patient_dict(data)
 
     def test_recommendations_generation(self):
         data = {
@@ -314,7 +314,46 @@ class TestDictParserAndEdgeCases(unittest.TestCase):
         res = analyze_patient_dict(data)
         recs = " ".join(res["recommendations"])
         self.assertIn("CAUTI", recs)
-        self.assertIn("Acute Pain Service", recs)
+        self.assertIn("acute pain", recs.lower())
+
+    def test_rejects_unknown_and_duplicate_milestones(self):
+        with self.assertRaises(ValueError):
+            analyze_patient_dict({
+                "specialty": "COLORECTAL",
+                "milestones": [{"milestone_id": "TYPO_ID", "status": True}],
+            })
+
+        with self.assertRaises(ValueError):
+            analyze_patient_dict({
+                "specialty": "COLORECTAL",
+                "milestones": [
+                    {"milestone_id": "PRE_FASTING", "status": True},
+                    {"milestone_id": "PRE_FASTING", "status": False},
+                ],
+            })
+
+    def test_rejects_string_boolean_and_mismatched_phase(self):
+        with self.assertRaises(ValueError):
+            analyze_patient_dict({
+                "specialty": "COLORECTAL",
+                "milestones": [{"milestone_id": "PRE_FASTING", "status": "false"}],
+            })
+
+        with self.assertRaises(ValueError):
+            analyze_patient_dict({
+                "specialty": "COLORECTAL",
+                "milestones": [
+                    {"milestone_id": "PRE_FASTING", "status": True, "phase": "POD_1"}
+                ],
+            })
+
+    def test_rejects_negative_numeric_inputs(self):
+        with self.assertRaises(ValueError):
+            analyze_patient_dict({
+                "specialty": "COLORECTAL",
+                "expected_los_days": -1,
+                "milestones": [],
+            })
 
     def test_json_serializability(self):
         data = {
