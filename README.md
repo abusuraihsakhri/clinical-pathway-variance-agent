@@ -1,5 +1,7 @@
 # Clinical Pathway Variance Agent
 
+### [Open the Live Application →](https://abusuraihsakhri.github.io/clinical-pathway-variance-agent/)
+
 A Python and browser-based tool for reviewing pathway adherence, recording perioperative variances, and calculating weighted compliance metrics across five built-in surgical pathway profiles.
 
 > **Important:** The included milestone definitions, variance weights, LOS coefficients, cost coefficients, and thresholds are configurable heuristics for research, education, or quality-improvement workflows. They are not validated patient-level outcome predictions, clinical guidelines, or medical advice. Confirm all pathway definitions and thresholds against current local policy and source guidelines before operational use.
